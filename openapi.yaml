@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Pawstash encrypted sync
+  version: 1.0.0
+servers:
+  - url: /v1
+paths:
+  /health:
+    get:
+      responses:
+        '200': { description: Server and protocol status }
+  /accounts:
+    post:
+      summary: Create an opaque encrypted account envelope
+      responses:
+        '201': { description: Created }
+        '409': { description: Account already exists }
+  /accounts/{account_id}/bundle:
+    get:
+      summary: Fetch public KDF parameters and encrypted key bundle
+      parameters:
+        - { in: path, name: account_id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Encrypted bundle }
+        '404': { description: Unknown account }
+    put:
+      summary: Replace encrypted bundle after a password change
+      security: [bearerAuth: []]
+      responses:
+        '204': { description: Replaced }
+  /sessions:
+    post:
+      summary: Exchange account auth token for an expiring bearer session
+      responses:
+        '201': { description: Session created }
+        '401': { description: Invalid credentials }
+  /devices:
+    get:
+      summary: List account devices, including revoked devices
+      security: [bearerAuth: []]
+      responses:
+        '200': { description: Device list }
+    post:
+      summary: Register a device using a short-lived bootstrap session
+      security: [bearerAuth: []]
+      responses:
+        '201': { description: Device registered }
+  /devices/{device_id}:
+    delete:
+      summary: Revoke a device and all of its active sessions
+      security: [bearerAuth: []]
+      responses:
+        '204': { description: Device revoked }
+  /changes:
+    get:
+      security: [bearerAuth: []]
+      parameters:
+        - { in: query, name: after, schema: { type: integer, minimum: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        '200': { description: Ordered encrypted changes and next cursor }
+  /records:push:
+    post:
+      security: [bearerAuth: []]
+      parameters:
+        - { in: header, name: Idempotency-Key, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Atomic batch accepted }
+        '409': { description: Revision conflict }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
